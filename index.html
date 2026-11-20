@@ -66,6 +66,8 @@ button{font:inherit;cursor:pointer;color:inherit}
 .qty .stock{font:700 1.7rem/1 var(--display);min-width:46px;text-align:center}
 .qbtn{width:48px;height:48px;border-radius:6px;border:1px solid var(--line);background:var(--bg);font-size:1.4rem;font-weight:700}
 .qbtn.minus{border-color:var(--low)}
+.qbtn.plus{border-color:var(--ok)}
+.err{color:#ffb3ae;font-weight:600}
 input,select{font:inherit;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:10px;min-width:0;min-height:44px}
 input[type=checkbox]{min-height:0;width:22px;height:22px}
 label.f{display:flex;flex-direction:column;gap:4px;font-size:.88rem;color:var(--mute)}
@@ -238,12 +240,21 @@ function sugHtml(p){var s=suggestion(p),w=weekly(p);return '<div class="suggest"
 
 function partCard(p){var l=lvl(p),s=stock(p),ec=enCommande(p);
   return '<article class="part l'+l+'"><div class="info" data-act="go" data-v="piece" data-x="'+p.id+'"><h3>'+esc(p.nom)+'</h3><div class="small mute">Réf. '+esc(p.ref)+' · '+esc(p.emp)+'</div></div>'+
-  '<div class="qty"><button class="qbtn minus" data-act="out" data-id="'+p.id+'" aria-label="Sortir une pièce : '+esc(p.nom)+'">−1</button><span class="stock num">'+s+'</span></div>'+
+  '<div class="qty"><button class="qbtn minus" data-act="out" data-id="'+p.id+'" aria-label="Sortir une pièce : '+esc(p.nom)+'">−1</button><span class="stock num">'+s+'</span><button class="qbtn plus" data-act="in1" data-id="'+p.id+'" aria-label="Ajouter une pièce au stock : '+esc(p.nom)+'">+1</button></div>'+
   '<div class="meta"><span class="chip l'+l+'">'+LV[l]+'</span><span>seuil '+seuil(p)+'</span>'+(ec?'<span>'+ec+' commandées</span>':'')+(p.crit?'<span class="tag crit">Immobilise une machine</span>':'')+'</div></article>'}
 
 function cont(){var c=C(view.x),l=actifs().filter(function(p){return p.cont===c.id&&(norm(p.nom+' '+p.ref+' '+p.emp).indexOf(norm(q))>-1)}).sort(function(a,b){return lvl(b)-lvl(a)});
   return '<div class="row"><button class="btn" data-act="go" data-v="home">← Tous les conteneurs</button></div><div class="head" style="--c:'+c.c+'"><h1>'+esc(c.nom)+'</h1></div>'+
-  '<input id="q" class="search" type="search" placeholder="Rechercher : nom, référence, étagère…" value="'+esc(q)+'">'+
+  '<div class="row"><input id="q" class="search grow" type="search" placeholder="Rechercher : nom, référence, étagère…" value="'+esc(q)+'"><button class="btn primary" data-act="addform">＋ Ajouter une pièce</button></div>'+
+  '<section class="card" id="newp" hidden><h2>Nouvelle pièce</h2><div class="grid2">'+
+  '<label class="f">Nom<input id="np-nom" autocomplete="off"></label>'+
+  '<label class="f">Référence<input id="np-ref" autocomplete="off"></label>'+
+  '<label class="f">Emplacement<input id="np-emp" placeholder="Étagère, bac…"></label>'+
+  '<label class="f">Quantité en stock<input id="np-q" type="number" min="0" value="0"></label>'+
+  '<label class="f">Seuil d’alerte<input id="np-s" type="number" min="0" value="2"></label>'+
+  '<label class="f">Fournisseur<select id="np-f">'+S.fours.map(function(x){return '<option value="'+x.id+'">'+esc(x.nom)+'</option>'}).join('')+'</select></label>'+
+  '<label class="f" style="flex-direction:row;align-items:center;gap:10px;color:var(--ink)"><input type="checkbox" id="np-c"> Immobilise une machine si elle manque</label></div>'+
+  '<div class="row"><button class="btn primary" data-act="addpiece">Ajouter la pièce</button><button class="btn" data-act="addform">Annuler</button><span class="err" id="np-err"></span></div></section>'+
   '<div id="list" style="display:flex;flex-direction:column;gap:10px">'+(l.length?l.map(partCard).join(''):'<div class="empty">Aucune pièce ne correspond.</div>')+'</div>'}
 
 function search(){var l=q?actifs().filter(function(p){return norm(p.nom+' '+p.ref+' '+p.emp).indexOf(norm(q))>-1}):[];
@@ -253,7 +264,7 @@ function piece(){var p=P(view.x),f=F(p.four),iv=intervals(p),w=weekly(p),cp=calc
   var mx=Math.max.apply(null,iv.map(function(x){return x.parSemaine}).concat([1]));
   var h='<div class="row"><button class="btn" data-act="go" data-v="cont" data-x="'+p.cont+'">← '+esc(C(p.cont).nom)+'</button></div>'+
   '<section class="card"><div class="row"><div class="grow"><h1>'+esc(p.nom)+'</h1><p class="mute">Réf. '+esc(p.ref)+'</p><p class="emp">'+esc(p.emp)+'</p></div><div style="text-align:right"><div class="big-n num">'+stock(p)+'</div><span class="chip l'+l+'">'+LV[l]+'</span></div></div>'+
-  '<div class="row"><button class="btn primary" data-act="out" data-id="'+p.id+'">Sortir 1</button><button class="btn" data-act="outn" data-id="'+p.id+'">Sortir plusieurs</button><button class="btn ok" data-act="recu1" data-id="'+p.id+'">Reçu…</button></div></section>';
+  '<div class="row"><button class="btn primary" data-act="out" data-id="'+p.id+'">Sortir 1</button><button class="btn" data-act="outn" data-id="'+p.id+'">Sortir plusieurs</button><button class="btn ok" data-act="recu1" data-id="'+p.id+'">Ajouter (reçu)…</button><button class="btn" data-act="cnow" data-id="'+p.id+'">Compter maintenant</button></div></section>';
   if(s)h+=sugHtml(p);
   h+='<section class="card"><h2>Ce qui part, d’après les comptages</h2>'+(iv.length?'<div class="bars">'+iv.map(function(x){return '<div class="'+(x.etat!=='ok'?'r':'')+'" style="height:'+Math.round(x.parSemaine/mx*100)+'%" title="'+fdate(x.b.t)+'"><span class="num">'+(x.etat==='ok'?un(x.parSemaine):x.etat==='rupture'?'rupt.':'écart')+'</span></div>'}).join('')+'</div><p class="small mute">Une barre par semaine entre deux comptages (pièces par semaine).</p>':'')+
   '<p>'+(w==null?'Pas encore assez de comptages : le seuil choisi à la main sert.':'Sort environ <b class="num">'+un(w)+'</b> par semaine. Délai '+delai(p)+' jours. Point de commande calculé : <b class="num">'+cp+'</b>.')+'</p>'+
@@ -274,7 +285,8 @@ function mvtLine(m){var p=P(m.piece),mc=m.mach?Mc(m.mach):null,lab=m.type==='sor
   return '<div class="line"'+(m.annule?' style="opacity:.5;text-decoration:line-through"':'')+'><span class="num" style="min-width:64px;font-weight:700">'+lab+'</span><span class="grow">'+esc(p.nom)+(mc?' · '+esc(mc.nom):'')+'<br><span class="small mute">'+esc(m.qui)+' · '+fdt(m.t)+'</span></span>'+(!m.annule&&Date.now()-m.t<7*DAY?'<button class="btn" data-act="undo" data-id="'+m.id+'">Annuler</button>':'')+'</div>'}
 
 function compter(){
-  if(!S.sess){var l=listeComptage();return '<h1>Comptage de la semaine</h1>'+demoBar()+'<section class="card"><p>Une pièce par écran : allez à l’emplacement, comptez, tapez le nombre. Comptez ce qui est vraiment là, même si quelqu’un a oublié de noter.</p><p class="mute">'+l.length+' pièces cette semaine : les pièces critiques, puis celles qui ont le plus surpris ou n’ont pas été comptées depuis longtemps.</p><button class="btn primary big" data-act="start">Commencer ('+l.length+' pièces)</button></section>'+lastSession()}
+  if(!S.sess){var l=listeComptage();return '<h1>Comptage de la semaine</h1>'+demoBar()+'<section class="card"><p>Une pièce par écran : allez à l’emplacement, comptez, tapez le nombre. Comptez ce qui est vraiment là, même si quelqu’un a oublié de noter. Vous pouvez aussi compter n’importe quelle pièce à tout moment, plus bas.</p><p class="mute">'+l.length+' pièces cette semaine : les pièces critiques, puis celles qui ont le plus surpris ou n’ont pas été comptées depuis longtemps.</p><button class="btn primary big" data-act="start">Commencer ('+l.length+' pièces)</button></section>'+
+    '<section class="card"><h2>Compter une pièce maintenant</h2><p class="mute small">À tout moment, pour n’importe quelle pièce.</p><input id="qcs" class="search" type="search" placeholder="Rechercher : nom, référence, étagère…" value="'+esc(qcs)+'"><div id="qcl">'+countList()+'</div></section>'+lastSession()}
   var se=S.sess,i=se.i;
   if(i>=se.list.length)return fin();
   var p=P(se.list[i]),lc=lastCount(p),pct=Math.round(i/se.list.length*100);
@@ -289,6 +301,12 @@ function fin(){var se=S.sess,ids=Object.keys(se.done);
   ids.map(function(id){var p=P(id),pr=stock(p),v=se.done[id],e=v-pr;return '<div class="line"><span class="grow">'+esc(p.nom)+'<br><span class="small mute">prévu '+pr+', compté '+v+'</span></span>'+(e===0?'<span class="chip l0">Juste</span>':'<span class="chip '+(Math.abs(e)>=2?'l2':'l1')+'">'+(e>0?'+':'')+e+'</span>')+'</div>'}).join('')+
   '<p class="small mute">Un écart négatif veut dire des sorties non notées : c’est normal, le comptage les rattrape.</p><button class="btn primary big" data-act="cdone">Enregistrer le comptage</button><button class="btn" data-act="cback">← Revenir aux pièces</button></section>'}
 
+var qcs='';
+function countList(){var l=actifs().filter(function(p){return !qcs||norm(p.nom+' '+p.ref+' '+p.emp).indexOf(norm(qcs))>-1});
+  if(!qcs)l=l.slice().sort(function(a,b){var x=lastCount(a),y=lastCount(b);return (x?x.t:0)-(y?y.t:0)}).slice(0,6);
+  if(!l.length)return '<div class="empty">Aucune pièce ne correspond.</div>';
+  return (qcs?'':'<p class="small mute">Les moins récemment comptées :</p>')+l.map(function(p){var lc=lastCount(p);return '<div class="line"><span class="grow">'+esc(p.nom)+'<br><span class="small mute">'+esc(p.emp)+' · compté '+(lc?'le '+fdate(lc.t):'jamais')+'</span></span><button class="btn" data-act="cnow" data-id="'+p.id+'">Compter</button></div>'}).join('')}
+function askCount(p){var lc=lastCount(p);layer('<h2>Compter : '+esc(p.nom)+'</h2><p class="emp">'+esc(p.emp)+'</p><label class="f">Combien en voyez-vous ?<input id="cn" class="count-in num" type="number" inputmode="numeric" min="0"></label><p class="small mute">Stock affiché : '+stock(p)+(lc?' · dernier comptage : '+lc.v+' le '+fdate(lc.t):'')+'</p><button class="btn primary big" data-act="cnowok" data-id="'+p.id+'">Enregistrer le comptage</button><button class="btn" data-act="close">Annuler</button>');var e=document.getElementById('cn');if(e)e.focus()}
 function lastSession(){var t=lastSessionT();return t?'<p class="mute small">Dernier comptage enregistré : '+fdt(t)+'.</p>':''}
 
 function commander(){var l=actifs().filter(aCommander),by={};
@@ -364,6 +382,17 @@ document.addEventListener('click',function(e){var t=e.target.closest('[data-act]
   if(a==='go'){if(v==='cont')q='';go(v,t.dataset.x);return}
   if(a==='reset'){if(t.dataset.sure){var me=S.me;S=seed();S.me=me;save();go('home');toast('Démo remise à zéro.')}else{t.dataset.sure='1';t.textContent='Confirmer : tout effacer';t.classList.add('danger')}return}
   if(a==='out'){askMachine(P(id),1);return}
+  if(a==='in1'){var pin=P(id),iid=addMvt({piece:id,type:'recu',q:1});render();toast('+1 '+pin.nom,iid);return}
+  if(a==='cnow'){askCount(P(id));return}
+  if(a==='cnowok'){var cv=document.getElementById('cn').value;if(cv===''){document.getElementById('cn').focus();return}var pc=P(id),before=stock(pc),nv=Math.max(0,parseInt(cv,10)||0);S.comptes.push({id:uid(),piece:id,v:nv,t:Date.now(),qui:S.me});save();layer('');render();var dd=nv-before;toast('Comptage enregistré : '+nv+' '+pc.nom+(dd?' (écart '+(dd>0?'+':'')+dd+')':''));return}
+  if(a==='addform'){var fp=document.getElementById('newp');fp.hidden=!fp.hidden;if(!fp.hidden)document.getElementById('np-nom').focus();return}
+  if(a==='addpiece'){var nm=document.getElementById('np-nom').value.trim(),rf=document.getElementById('np-ref').value.trim(),er=document.getElementById('np-err');
+    if(!nm){er.textContent='Indiquez le nom de la pièce.';document.getElementById('np-nom').focus();return}
+    var dup=actifs().filter(function(p){return norm(p.nom)===norm(nm)||(rf&&norm(p.ref)===norm(rf))})[0];
+    if(dup){er.textContent='Cette pièce existe déjà dans « '+C(dup.cont).nom+' ». Modifiez plutôt sa quantité.';return}
+    var npid='p'+uid(),nq=Math.max(0,parseInt(document.getElementById('np-q').value,10)||0);
+    S.pieces.push({id:npid,nom:nm,ref:rf||'—',cont:view.x,four:document.getElementById('np-f').value,crit:document.getElementById('np-c').checked,emp:document.getElementById('np-emp').value.trim()||'À ranger',seuil:Math.max(0,parseInt(document.getElementById('np-s').value,10)||0),cond:1,delai:null,accepte:null,refus:null,actif:true});
+    S.comptes.push({id:uid(),piece:npid,v:nq,t:Date.now(),qui:S.me});save();render();toast('Pièce ajoutée : '+nm+' ('+nq+' en stock).');return}
   if(a==='outn'){askQty(P(id),'sortie');return}
   if(a==='recu1'){askQty(P(id),'recu');return}
   if(a==='qok'){var n2=Math.max(1,parseInt(document.getElementById('qn').value,10)||1),p2=P(id);if(v==='recu'){layer('');var i2=addMvt({piece:id,type:'recu',q:n2});render();toast('Reçu +'+n2+' '+p2.nom,i2)}else askMachine(p2,n2);return}
@@ -388,11 +417,11 @@ document.addEventListener('click',function(e){var t=e.target.closest('[data-act]
     actifs().forEach(function(p){rows.push([C(p.cont).nom,p.nom,p.ref,p.emp,stock(p),seuil(p),LV[lvl(p)],F(p.four).nom,delai(p),p.crit?'oui':'non'])});
     copy(rows.map(function(r){return r.join('\t')}).join('\n'),'xls');return}
 });
-document.addEventListener('input',function(e){if(e.target.id==='q'){q=e.target.value;var l=document.getElementById('list');if(l&&view.n==='cont'){var c=C(view.x),arr=actifs().filter(function(p){return p.cont===c.id&&norm(p.nom+' '+p.ref+' '+p.emp).indexOf(norm(q))>-1});l.innerHTML=arr.length?arr.map(partCard).join(''):'<div class="empty">Aucune pièce ne correspond.</div>'}}});
+document.addEventListener('input',function(e){if(e.target.id==='qcs'){qcs=e.target.value;var cl=document.getElementById('qcl');if(cl)cl.innerHTML=countList();return}if(e.target.id==='q'){q=e.target.value;var l=document.getElementById('list');if(l&&view.n==='cont'){var c=C(view.x),arr=actifs().filter(function(p){return p.cont===c.id&&norm(p.nom+' '+p.ref+' '+p.emp).indexOf(norm(q))>-1});l.innerHTML=arr.length?arr.map(partCard).join(''):'<div class="empty">Aucune pièce ne correspond.</div>'}}});
 document.addEventListener('change',function(e){var d=e.target.dataset;if(!d||!d.f)return;var p=P(d.id),val=e.target.type==='checkbox'?e.target.checked:e.target.value;
   if(d.f==='delai'||d.f==='seuil'||d.f==='cond')val=Math.max(d.f==='cond'?1:0,parseInt(val,10)||0);
   if(d.f==='seuil'){p.accepte=null;p.refus=null}
   p[d.f]=val;save();render();toast('Fiche enregistrée.')});
-document.addEventListener('keydown',function(e){if(e.key==='Enter'){if(e.target.id==='cnt'){e.preventDefault();document.querySelector('[data-act="cnext"]').click()}else if(e.target.id==='me'){document.querySelector('[data-act="setme"]').click()}else if(e.target.id==='qn'){document.querySelector('[data-act="qok"]').click()}}if(e.key==='Escape')layer('')});
+document.addEventListener('keydown',function(e){if(e.key==='Enter'){if(e.target.id==='cnt'){e.preventDefault();document.querySelector('[data-act="cnext"]').click()}else if(e.target.id==='me'){document.querySelector('[data-act="setme"]').click()}else if(e.target.id==='qn'){document.querySelector('[data-act="qok"]').click()}else if(e.target.id==='cn'){document.querySelector('[data-act="cnowok"]').click()}}if(e.key==='Escape')layer('')});
 render();
 </script>
