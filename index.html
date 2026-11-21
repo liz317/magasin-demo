@@ -444,7 +444,8 @@ function qtyConseil(p){var w=weekly(p),cible;
   var q=Math.ceil(cible-stock(p)-enCommande(p));q=Math.max(1,q);var k=p.cond||1;return Math.ceil(q/k)*k}
 function lvl(p){var s=stock(p),t=seuil(p);return s<=0?3:s<=t?2:s<=Math.ceil(t*1.5)?1:0}
 function ecartDernier(p){var c=counts(p);if(c.length<2)return null;var b=c[c.length-1];return b.v-stockAt(p,b.t-1)}
-function retard(c){return c.etat==='ouverte'&&Date.now()>c.att+2*DAY}
+/* 22 nov. 2026 (Marin) : plus de « livraison en retard » ; une commande est en attente ou terminée. */
+function retard(c){return false}
 function lastSessionT(){var t=0;S.comptes.forEach(function(c){if(c.t>t)t=c.t});return t}
 
 /* ---------- Liste du comptage du lundi ---------- */
@@ -505,10 +506,9 @@ function home(){
   var ps=actifs(),aC=ps.filter(aCommander),open=S.cmds.filter(function(c){return c.etat==='ouverte'}),late=open.filter(retard),sug=ps.filter(suggestion);
   var days=Math.floor((Date.now()-lastSessionT())/DAY),h='',t=[];
   function item(l,icon,title,sub,n,act){return '<button class="todo-i l'+l+'" '+act+'>'+ic(icon)+'<span class="grow"><b>'+title+'</b><span>'+sub+'</span></span>'+(n!=null?'<span class="n">'+n+'</span>':'')+'<span class="go">'+ic('chev')+'</span></button>'}
-  if(S.sess)t.push(item(1,'count','Reprendre le comptage',Object.keys(S.sess.done).length+' sur '+S.sess.list.length+' pièces comptées',null,'data-act="tab" data-v="compter"'));
-  else if(days>=6)t.push(item(1,'count','Comptage de la semaine à faire',listeComptage().length+' pièces · environ 15 min · dernier il y a '+days+' j',null,'data-act="start"'));
+  /* Plus de rappel du comptage de la semaine : l'inventaire se lance quand on veut (onglet Inventaire). */
+  if(S.sess)t.push(item(1,'count','Reprendre l’inventaire',Object.keys(S.sess.done).length+' sur '+S.sess.list.length+' pièces comptées',null,'data-act="tab" data-v="compter"'));
   t.push(aC.length?item(2,'cart','À commander',aC.map(function(p){return esc(p.nom)}).join(', '),aC.length,'data-act="tab" data-v="commander"'):item(0,'ok','Rien à commander','Tous les stocks couvrent le délai de livraison',null,'data-act="tab" data-v="commander"'));
-  if(open.length)t.push(item(late.length?3:1,'truck',late.length?'Livraison en retard':'Livraisons attendues',open.map(function(c){return esc(F(c.four).nom)+' · prévue le '+fdate(c.att)}).join(', '),open.length,'data-act="go" data-v="commandes"'));
   if(sug.length)t.push(item(1,'list','Seuils à vérifier','Le calcul propose un autre seuil d’alerte',sug.length,'data-act="tab" data-v="commander"'));
   /* L'action la plus fréquente d'abord : prendre ou ranger une pièce, sans passer par les conteneurs. */
   var mine=[];S.mvts.slice().reverse().forEach(function(m){if(m.qui===S.me&&!m.annule&&mine.indexOf(m.piece)<0&&P(m.piece)&&P(m.piece).actif)mine.push(m.piece)});mine=mine.slice(0,4);
@@ -560,7 +560,7 @@ function cont(){var c=C(view.x),l=actifs().filter(function(p){return p.cont===c.
   '<label class="f">Quantité en stock<input id="np-q" type="number" min="0" value="0"></label>'+
   '<label class="f">Seuil d’alerte<input id="np-s" type="number" min="0" value="2"></label>'+
   '<label class="f">Fournisseur<select id="np-f">'+S.fours.map(function(x){return '<option value="'+x.id+'">'+esc(x.nom)+'</option>'}).join('')+'</select></label>'+
-  '<label class="f" style="flex-direction:row;align-items:center;gap:10px;color:var(--ink)"><input type="checkbox" id="np-c"> Immobilise une machine si elle manque</label></div>'+
+  '<label class="f" style="flex-direction:row;align-items:center;gap:10px;color:var(--ink)"><input type="checkbox" id="np-c"> Pièce critique : le travail s’arrête si elle manque</label></div>'+
   '<div class="row"><button class="btn primary" data-act="addpiece">Ajouter la pièce</button><button class="btn" data-act="addform">Annuler</button><span class="err" id="np-err"></span></div></section>'+
   '<div id="list" style="display:flex;flex-direction:column;gap:10px">'+(l.length?l.map(partCard).join(''):'<div class="empty">'+(q?'Aucune pièce ne correspond.':'Ce conteneur est vide. Touchez « Ajouter une pièce » pour le remplir.')+'</div>')+'</div>'}
 
@@ -570,7 +570,7 @@ function search(){var l=q?actifs().filter(function(p){return norm(p.nom+' '+p.re
 function piece(){var p=P(view.x),f=F(p.four),iv=intervals(p),w=weekly(p),cp=calcPoint(p),s=suggestion(p),l=lvl(p);
   var mx=Math.max.apply(null,iv.map(function(x){return x.parSemaine}).concat([1]));
   var h='<div class="row"><button class="btn back" data-act="go" data-v="cont" data-x="'+p.cont+'">'+ic('back')+esc(C(p.cont).nom)+'</button></div>'+
-  '<section class="card"><div class="row"><div class="grow" style="display:flex;flex-direction:column;gap:4px"><span class="eyebrow">'+esc(C(p.cont).nom)+'</span><h1>'+esc(p.nom)+'</h1><p class="mute mono">'+esc(p.ref)+'</p><p class="emp">'+ic('pin')+esc(p.emp)+'</p>'+(p.crit?'<span><span class="tag crit">'+ic('bolt')+'Immobilise une machine</span></span>':'')+'</div><div class="l'+l+'" style="text-align:right;display:flex;flex-direction:column;align-items:flex-end;gap:6px"><span class="eyebrow">En stock</span><div class="big-n num" style="color:var(--s)">'+stock(p)+'</div>'+lvChip(l)+'<span class="small mute">alerte à '+seuil(p)+'</span></div></div>'+
+  '<section class="card"><div class="row"><div class="grow" style="display:flex;flex-direction:column;gap:4px"><span class="eyebrow">'+esc(C(p.cont).nom)+'</span><h1>'+esc(p.nom)+'</h1><p class="mute mono">'+esc(p.ref)+'</p><p class="emp">'+ic('pin')+esc(p.emp)+'</p>'+(p.crit?'<span><span class="tag crit">'+ic('bolt')+'Pièce critique</span></span>':'')+'</div><div class="l'+l+'" style="text-align:right;display:flex;flex-direction:column;align-items:flex-end;gap:6px"><span class="eyebrow">En stock</span><div class="big-n num" style="color:var(--s)">'+stock(p)+'</div>'+lvChip(l)+'<span class="small mute">alerte à '+seuil(p)+'</span></div></div>'+
   '<div class="acts"><button class="btn primary" data-act="out" data-id="'+p.id+'">−1 Sortir</button><button class="btn" data-act="outn" data-id="'+p.id+'">Sortir plusieurs</button><button class="btn ok" data-act="recu1" data-id="'+p.id+'">+ Réception</button><button class="btn" data-act="cnow" data-id="'+p.id+'">Compter</button></div></section>';
   if(s)h+=sugHtml(p);
   h+='<section class="card"><h2>Ce qui part, d’après les comptages</h2>'+(iv.length?'<div class="bars">'+iv.map(function(x){return '<div class="'+(x.etat!=='ok'?'r':'')+'" style="height:'+Math.round(x.parSemaine/mx*100)+'%" title="'+fdate(x.b.t)+'"><span class="num">'+(x.etat==='ok'?un(x.parSemaine):x.etat==='rupture'?'rupt.':'écart')+'</span></div>'}).join('')+'</div><p class="small mute">Une barre par semaine entre deux comptages (pièces par semaine).</p>':'')+
@@ -582,13 +582,13 @@ function piece(){var p=P(view.x),f=F(p.four),iv=intervals(p),w=weekly(p),cp=calc
   '<label class="f">Délai de livraison (jours)<input type="number" min="0" data-f="delai" data-id="'+p.id+'" value="'+delai(p)+'"></label>'+
   '<label class="f">Seuil à la main<input type="number" min="0" data-f="seuil" data-id="'+p.id+'" value="'+p.seuil+'"></label>'+
   '<label class="f">Vendu par (conditionnement)<input type="number" min="1" data-f="cond" data-id="'+p.id+'" value="'+p.cond+'"></label>'+
-  '<label class="f" style="flex-direction:row;align-items:center;gap:10px;color:var(--ink)"><input type="checkbox" data-f="crit" data-id="'+p.id+'"'+(p.crit?' checked':'')+'> Immobilise une machine si elle manque</label></div>'+
+  '<label class="f" style="flex-direction:row;align-items:center;gap:10px;color:var(--ink)"><input type="checkbox" data-f="crit" data-id="'+p.id+'"'+(p.crit?' checked':'')+'> Pièce critique : le travail s’arrête si elle manque</label></div>'+
   '<p class="small mute">Fournisseur : '+esc(f.nom)+' · <span class="num">'+esc(f.tel)+'</span></p></details>';
   var hist=S.mvts.filter(function(m){return m.piece===p.id}).slice(-8).reverse();
   h+='<section class="card"><h2>Derniers mouvements</h2>'+(hist.length?mvtDays(hist):'<p class="mute">Aucun.</p>')+'</section>';
   return h}
 
-function mvtLine(m){var p=P(m.piece),mc=m.mach?Mc(m.mach):null,lab=m.type==='sortie'?'−'+m.q:m.type==='recu'?'Reçu +'+m.q:(m.q>0?'+':'')+m.q;
+function mvtLine(m){var p=P(m.piece),mc=null,lab=m.type==='sortie'?'−'+m.q:m.type==='recu'?'Reçu +'+m.q:(m.q>0?'+':'')+m.q;
   /* On ne peut annuler que ses propres gestes, dans les 24 h : moins de boutons, moins d'erreurs. */
   var t=new Date(m.t).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'});
   return '<div class="mv'+(m.annule?' off':'')+'"><span class="mv-q num '+(m.type==='sortie'?'out':'in')+'">'+lab+'</span><span class="grow"><b>'+esc(p.nom)+'</b><span class="small mute">'+esc(m.qui)+(mc?' · '+esc(mc.nom):'')+' · '+t+(m.annule?' · annulé':'')+'</span></span>'+(!m.annule&&m.qui===S.me&&Date.now()-m.t<DAY?'<button class="lnk" data-act="undo" data-id="'+m.id+'">Annuler</button>':'')+'</div>'}
@@ -596,8 +596,11 @@ function mvtDays(l){var out='',cur='',today=new Date().toDateString(),hier=new D
   l.forEach(function(m){var d=new Date(m.t),k=d.toDateString();if(k!==cur){cur=k;out+='<h3 class="day">'+(k===today?'Aujourd’hui':k===hier?'Hier':d.toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long'}))+'</h3>'}out+=mvtLine(m)});return out}
 
 function compter(){
-  if(!S.sess){var l=listeComptage();return '<h1>Comptage de la semaine</h1>'+demoBar()+'<section class="card"><p><b>'+l.length+' pièces</b>, environ 15 minutes. Une pièce par écran : allez à l’emplacement, comptez ce qui est vraiment là, tapez le nombre.</p><p class="small mute">Les pièces critiques d’abord, puis celles qui ont surpris ou n’ont pas été comptées depuis longtemps.</p><button class="btn primary big" data-act="start">Commencer ('+l.length+' pièces)</button></section>'+
-    '<section class="card"><h2>Compter une pièce maintenant</h2><p class="mute small">À tout moment, pour n’importe quelle pièce.</p><input id="qcs" class="search" type="search" placeholder="Rechercher : nom, référence, étagère…" value="'+esc(qcs)+'"><div id="qcl">'+countList()+'</div></section>'+lastSession()}
+  if(!S.sess){var tous=actifs().length;return '<h1>Inventaire</h1>'+demoBar()+
+    '<section class="card"><h2>Mettre à jour en mode inventaire</h2><p class="mute">Quand vous voulez. Une pièce par écran : allez à l’emplacement, comptez ce qui est vraiment là, tapez le nombre. À la fin, vous voyez les écarts avant d’enregistrer.</p>'+
+    '<button class="btn primary big" data-act="start" data-v="">Tout le stock ('+tous+' pièces)</button>'+
+    '<p class="small mute">Ou un seul conteneur :</p><div class="machs">'+S.conts.map(function(c){var n=actifs().filter(function(p){return p.cont===c.id}).length;return '<button class="btn" data-act="start" data-v="'+c.id+'"'+(n?'':' disabled')+'>'+esc(c.nom)+' ('+n+')</button>'}).join('')+'</div></section>'+
+    '<section class="card"><h2>Compter une seule pièce</h2><p class="mute small">À tout moment, pour n’importe quelle pièce.</p><input id="qcs" class="search" type="search" placeholder="Rechercher : nom, référence, étagère…" value="'+esc(qcs)+'"><div id="qcl">'+countList()+'</div></section>'+lastSession()}
   var se=S.sess,i=se.i;
   if(i>=se.list.length)return fin();
   var p=P(se.list[i]),lc=lastCount(p),pct=Math.round(i/se.list.length*100);
@@ -608,7 +611,7 @@ function compter(){
   '<button class="btn primary big" data-act="cnext">Suivant</button><div class="row"><button class="btn" data-act="cprev"'+(i===0?' disabled':'')+'>← Précédente</button><button class="btn" data-act="cskip">Passer cette pièce</button></div></section>'}
 
 function fin(){var se=S.sess,ids=Object.keys(se.done);
-  return '<h1>Comptage terminé</h1><section class="card"><p>'+ids.length+' pièces comptées. Vérifiez les écarts, puis enregistrez.</p>'+
+  return '<h1>Inventaire terminé</h1><section class="card"><p>'+ids.length+' pièces comptées. Vérifiez les écarts, puis enregistrez.</p>'+
   ids.map(function(id){var p=P(id),pr=stock(p),v=se.done[id],e=v-pr;return '<div class="line"><span class="grow">'+esc(p.nom)+'<br><span class="small mute">prévu '+pr+', compté '+v+'</span></span>'+(e===0?'<span class="chip l0">Juste</span>':'<span class="chip '+(Math.abs(e)>=2?'l2':'l1')+'">'+(e>0?'+':'')+e+'</span>')+'</div>'}).join('')+
   '<p class="small mute">Un écart négatif veut dire des sorties non notées : c’est normal, le comptage les rattrape.</p><button class="btn primary big" data-act="cdone">Enregistrer le comptage</button><button class="btn" data-act="cback">← Revenir aux pièces</button></section>'}
 
@@ -622,7 +625,9 @@ function lastSession(){var t=lastSessionT();return t?'<p class="mute small">Dern
 
 function commander(){var l=actifs().filter(aCommander),by={};
   l.forEach(function(p){(by[p.four]=by[p.four]||[]).push(p)});
-  var keys=Object.keys(by),h='<h1>À commander</h1>',sug=actifs().filter(suggestion);
+  var keys=Object.keys(by),h='<h1>À commander</h1>',sug=actifs().filter(suggestion),ouv=S.cmds.filter(function(c){return c.etat==='ouverte'}).length;
+  /* Les commandes passées (pour noter ce qui arrive) se trouvent ici, depuis que l'accueil n'affiche plus les livraisons. */
+  if(S.cmds.length)h+='<div class="todo"><button class="todo-i l0" data-act="go" data-v="commandes">'+ic('truck')+'<span class="grow"><b>Commandes passées</b><span>'+(ouv?ouv+' en attente · notez ce qui arrive':'Toutes reçues')+'</span></span><span class="go">'+ic('chev')+'</span></button></div>';
   if(sug.length)h+='<section class="card"><h2>Seuils à vérifier ('+sug.length+')</h2><p class="mute small">Calculés d’après les comptages. Rien ne change sans votre accord.</p>'+sug.map(sugHtml).join('')+'</section>';
   if(!keys.length)return h+'<div class="empty">Rien à commander : tous les stocks couvrent le délai de livraison.</div>';
   h+='<p class="mute">Quantités conseillées pour tenir le délai de livraison plus 4 semaines. Modifiez-les si besoin.</p>';
@@ -635,7 +640,7 @@ function commander(){var l=actifs().filter(aCommander),by={};
 function mailText(k){var f=F(k),l=actifs().filter(function(p){return p.four===k&&aCommander(p)});
   return 'Bonjour,\n\nVoici notre commande :\n'+l.map(function(p){var e=document.getElementById('qc-'+p.id);return '- '+(e?e.value:qtyConseil(p))+' × '+p.nom+' (réf. '+p.ref+')'}).join('\n')+'\n\nMerci de nous confirmer le délai de livraison.\n\nCordialement,\n'+S.me}
 
-function commandes(){var l=S.cmds.slice().reverse(),h='<div class="row"><button class="btn back" data-act="go" data-v="home">'+ic('back')+'Accueil</button></div><h1>Commandes</h1>';
+function commandes(){var l=S.cmds.slice().reverse(),h='<div class="row"><button class="btn back" data-act="tab" data-v="commander">'+ic('back')+'À commander</button></div><h1>Commandes passées</h1>';
   if(!l.length)return h+'<div class="empty">Aucune commande.</div>';
   l.forEach(function(c){var f=F(c.four);
     h+='<section class="card '+(retard(c)?'late':'')+'"><div class="row"><div class="grow"><h2>'+esc(f.nom)+'</h2><p class="small mute">Commandée le '+fdate(c.t)+' · attendue le '+fdate(c.att)+'</p></div>'+(c.etat==='soldee'?'<span class="chip l0">Terminée</span>':retard(c)?'<span class="chip l3">En retard</span>':'<span class="chip l1">En attente</span>')+'</div>'+
@@ -697,8 +702,8 @@ function ideeFin(){var o=iq.done;
 
 /* ---------- Espace « Préparer le lancement » : 10 questions qui règlent le vrai outil (questions-cahier-des-charges.md) ---------- */
 var LQ=[
-  {t:'Le comptage de la semaine',q:'Qui compterait une quinzaine de pièces chaque semaine, et quel jour ?',why:'Tout le calcul repose sur ce comptage de 15 minutes : sans lui, les seuils restent fixés à la main.',
-   f:[{k:'jour',l:'Quel jour ?',c:['Lundi','Mardi','Mercredi','Jeudi','Vendredi','Samedi']},{k:'qui',l:'Qui ?',c:['Moi','Toujours le même employé','À tour de rôle','Personne ne peut s’y engager']},{k:'x',l:'À quelle heure ? (facultatif)',x:'Ex. : 7 h 30, avant le départ des camions'}]},
+  {t:'L’inventaire',q:'À quel rythme feriez-vous l’inventaire, et qui le ferait ?',why:'Le stock affiché se recale à chaque inventaire ; plus il est régulier, plus les seuils conseillés sont justes.',
+   f:[{k:'jour',l:'À quel rythme ?',c:['Chaque semaine','Toutes les 2 semaines','Chaque mois','Quand on y pense']},{k:'qui',l:'Qui ?',c:['Moi','Toujours le même employé','À tour de rôle','Personne ne peut s’y engager']},{k:'x',l:'Quel moment ? (facultatif)',x:'Ex. : le vendredi après-midi, avant les congés'}]},
   {t:'Pièces et unités',q:'Combien de pièces différentes avez-vous, et lesquelles ne se comptent pas à l’unité ?',why:'Une erreur d’unité (litres, mètres, boîtes) fausse tous les calculs de la pièce.',
    f:[{k:'nb',l:'Nombre de pièces différentes',c:['Moins de 50','50 à 150','150 à 300','Plus de 300']},{k:'u',l:'Comptées autrement qu’à l’unité',c:['Au litre','Au mètre','Au kilo','En boîte ou en vrac','Tout à l’unité'],m:5},{k:'x',l:'Lesquelles ? (facultatif)',x:'Ex. : huile au litre, flexible au mètre'}]},
   {t:'Délais des fournisseurs',q:'Combien de jours entre la commande et l’arrivée, d’habitude, chez chaque fournisseur ?',why:'Le délai décide du moment où l’outil dit « à commander ». Laissez vide si vous ne savez pas.',
@@ -747,10 +752,11 @@ function lStep(){var Q=LQ[lq],a=lA(lq);
   '<section class="card q"><h1>'+Q.q+'</h1><p class="mute">'+Q.why+'</p>'+Q.f.map(function(f){return lField(f,a)}).join('')+
   '<div class="acts">'+(lq?'<button class="btn" data-act="lprev">Précédente</button>':'<span></span>')+'<button class="btn primary" data-act="lnext">'+(lq<9?'Suivante':'Terminer')+'</button></div></section>'}
 
-var TABS=[['home','Accueil','home'],['compter','Compter','count'],['commander','Commander','cart'],['machines','Machines','wrench'],['journal','Journal','list']];
+/* 22 nov. 2026 (Marin) : plus d'onglet Machines ni de question « pour quelle machine ? » ; le comptage de la semaine devient l'inventaire, quand on veut. */
+var TABS=[['home','Accueil','home'],['compter','Inventaire','count'],['commander','Commander','cart'],['journal','Journal','list']];
 function tabs(){var n=view.n,act={home:'home',cont:'home',piece:'home',commandes:'home',machine:'machines'}[n]||n,nb=actifs().filter(aCommander).length;
   return TABS.map(function(t){return '<button class="'+(act===t[0]?'on':'')+'" data-act="tab" data-v="'+t[0]+'"'+(act===t[0]?' aria-current="page"':'')+'>'+ic(t[2])+'<b>'+t[1]+'</b>'+(t[0]==='commander'&&nb?'<span class="pill">'+nb+'</span>':'')+'</button>'}).join('')}
-function topBar(){var sec={home:'Tableau de bord',cont:'Conteneur',piece:'Fiche pièce',compter:'Comptage',commander:'À commander',commandes:'Commandes',machines:'Machines',machine:'Machine',journal:'Journal',idees:'Idées',lanc:'Lancement'}[view.n]||'';
+function topBar(){var sec={home:'Tableau de bord',cont:'Conteneur',piece:'Fiche pièce',compter:'Inventaire',commander:'À commander',commandes:'Commandes',machines:'Machines',machine:'Machine',journal:'Journal',idees:'Idées',lanc:'Lancement'}[view.n]||'';
   return '<span class="logo">'+ic('stock')+'</span><div class="brand"><b>Magasin de pièces</b><span>'+sec+'</span></div>'+'<button class="tb-theme" data-act="theme" aria-label="'+(nuit()?'Passer en fond jour':'Passer en fond nuit')+'" title="'+(nuit()?'Fond jour':'Fond nuit')+'">'+ic(nuit()?'sun':'moon')+'</button>'+(view.n==='idees'?'':'<button class="tb-idea" data-act="tab" data-v="idees" aria-label="Proposer une idée">'+ic('bulb')+'<span>Une idée ?</span></button>')+'<span class="who"><i>'+esc(S.me.charAt(0).toUpperCase())+'</i>'+esc(S.me)+'</span>'}
 
 function nameScreen(){return '<h1>Magasin de pièces</h1><section class="card"><h2>Qui êtes-vous ?</h2><p class="mute">Votre prénom s’affiche dans le journal à chaque pièce prise. On ne le demande qu’une fois sur cet appareil.</p><input id="me" placeholder="Votre prénom" autocomplete="given-name"><button class="btn primary big" data-act="setme">Entrer</button><p class="small mute">Démo : les données sont fictives et restent sur cet appareil.</p></section>'}
@@ -764,6 +770,8 @@ function render(){var a=document.getElementById('app'),t=document.getElementById
 /* ---------- Fenêtres : machine, quantité, réception ---------- */
 function layer(html){document.getElementById('layer').innerHTML=html?'<div class="sheet-bg" data-act="close"><div class="sheet" role="dialog" aria-modal="true">'+html+'</div></div>':''}
 var pend=null;
+/* Sortie notée tout de suite, sans demander de machine. */
+function sortir(p,qn){var mid=addMvt({piece:p.id,type:'sortie',q:qn});bumpId=p.id;render();bumpId=null;toast('−'+qn+' '+p.nom,mid)}
 function askMachine(p,qn){pend={p:p.id,q:qn};
   var list=S.machines.filter(function(m){return (p.cont!=='veh'&&p.cont!=='pom')||m.type===p.cont}),ok=list.map(function(m){return m.id}),recent=[];
   /* Vos machines récentes, seulement celles qui vont avec la pièce ; elles ne sont pas répétées dans « Les autres ». */
@@ -789,7 +797,7 @@ document.addEventListener('click',function(e){var t=e.target.closest('[data-act]
   if(a==='go'){if(v==='cont')q='';go(v,t.dataset.x);return}
   if(a==='theme'){var th=nuit()?'light':'dark';document.documentElement.dataset.theme=th;try{localStorage.setItem(THK,th)}catch(e){}document.getElementById('top').innerHTML=topBar();toast(th==='dark'?'Fond nuit':'Fond jour');return}
   if(a==='reset'){if(t.dataset.sure){var me=S.me;S=seed();S.me=me;save();go('home');toast('Démo remise à zéro.')}else{t.dataset.sure='1';t.textContent='Confirmer : tout effacer';t.classList.add('danger')}return}
-  if(a==='out'){askMachine(P(id),1);return}
+  if(a==='out'){sortir(P(id),1);return}
   if(a==='in1'){var pin=P(id),iid=addMvt({piece:id,type:'recu',q:1});bumpId=id;render();bumpId=null;toast('+1 '+pin.nom,iid);return}
   if(a==='cnow'){askCount(P(id));return}
   if(a==='cnowok'){var cv=document.getElementById('cn').value;if(cv===''){document.getElementById('cn').focus();return}var pc=P(id),before=stock(pc),nv=Math.max(0,parseInt(cv,10)||0);S.comptes.push({id:uid(),piece:id,v:nv,t:Date.now(),qui:S.me});save();layer('');render();var dd=nv-before;toast('Comptage enregistré : '+nv+' '+pc.nom+(dd?' (écart '+(dd>0?'+':'')+dd+')':''));return}
@@ -831,18 +839,19 @@ document.addEventListener('click',function(e){var t=e.target.closest('[data-act]
   if(a==='lcopy'){copy(lText(),'lcp');return}
   if(a==='outn'){askQty(P(id),'sortie');return}
   if(a==='recu1'){askQty(P(id),'recu');return}
-  if(a==='qok'){var n2=Math.max(1,parseInt(document.getElementById('qn').value,10)||1),p2=P(id);if(v==='recu'){layer('');var i2=addMvt({piece:id,type:'recu',q:n2});render();toast('Reçu +'+n2+' '+p2.nom,i2)}else askMachine(p2,n2);return}
+  if(a==='qok'){var n2=Math.max(1,parseInt(document.getElementById('qn').value,10)||1),p2=P(id);if(v==='recu'){layer('');var i2=addMvt({piece:id,type:'recu',q:n2});render();toast('Reçu +'+n2+' '+p2.nom,i2)}else{layer('');sortir(p2,n2)}return}
   if(a==='mach'){var pp=P(pend.p);layer('');var mid=addMvt({piece:pend.p,type:'sortie',q:pend.q,mach:v||null});bumpId=pend.p;render();bumpId=null;toast('−'+pend.q+' '+pp.nom+(v?' · '+Mc(v).nom:''),mid);return}
   if(a==='undo'){var m=S.mvts.filter(function(x){return x.id===id})[0];if(m&&!m.annule){m.annule=true;save();render();toast('Annulé.')}return}
   if(a==='acc'){var p3=P(id);p3.accepte=suggestion(p3);save();render();toast('Seuil '+p3.accepte+' accepté pour '+p3.nom+'.');return}
   if(a==='ref'){var p4=P(id);p4.refus=calcPoint(p4);save();render();return}
-  if(a==='start'){S.sess={list:listeComptage(),i:0,done:{}};save();go('compter');return}
+  /* Inventaire : tout le stock, ou un conteneur, dans l'ordre des emplacements (on fait le tour sans revenir en arrière). */
+  if(a==='start'){var il=actifs().filter(function(p){return !v||p.cont===v}).sort(function(x,y){return S.conts.indexOf(C(x.cont))-S.conts.indexOf(C(y.cont))||x.emp.localeCompare(y.emp,'fr',{numeric:true})}).map(function(p){return p.id});if(!il.length)return;S.sess={list:il,i:0,done:{}};save();go('compter');return}
   if(a==='cnext'){var val=document.getElementById('cnt').value;if(val===''){document.getElementById('cnt').focus();return}S.sess.done[S.sess.list[S.sess.i]]=Math.max(0,parseInt(val,10)||0);S.sess.i++;save();render();return}
   if(a==='cskip'){S.sess.i++;save();render();return}
   if(a==='cprev'){S.sess.i=Math.max(0,S.sess.i-1);save();render();return}
   if(a==='cback'){S.sess.i=Math.max(0,S.sess.list.length-1);save();render();return}
   if(a==='pause'){save();go('home');toast('Comptage gardé : reprenez quand vous voulez.');return}
-  if(a==='cdone'){var now=Date.now();Object.keys(S.sess.done).forEach(function(pid){S.comptes.push({id:uid(),piece:pid,v:S.sess.done[pid],t:now,qui:S.me})});var nb=Object.keys(S.sess.done).length;S.sess=null;save();go('home');toast('Comptage enregistré : '+nb+' pièces.');return}
+  if(a==='cdone'){var now=Date.now();Object.keys(S.sess.done).forEach(function(pid){S.comptes.push({id:uid(),piece:pid,v:S.sess.done[pid],t:now,qui:S.me})});var nb=Object.keys(S.sess.done).length;S.sess=null;save();go('compter');toast('Inventaire enregistré : '+nb+' pièces.');return}
   if(a==='mail'){copy(mailText(v),'mail-'+v);return}
   if(a==='ordered'){var f=F(v),lines=actifs().filter(function(p){return p.four===v&&aCommander(p)}).map(function(p){var e2=document.getElementById('qc-'+p.id);return{piece:p.id,q:Math.max(0,parseInt(e2?e2.value:qtyConseil(p),10)||0),recu:0}}).filter(function(l){return l.q>0});
     if(!lines.length)return;S.cmds.push({id:uid(),four:v,t:Date.now(),att:Date.now()+f.delai*DAY,etat:'ouverte',lignes:lines});save();render();toast('Commande notée chez '+f.nom+'. Attendue le '+fdate(Date.now()+f.delai*DAY));return}
