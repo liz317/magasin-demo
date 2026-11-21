@@ -184,6 +184,17 @@ details.set[open] summary::after{transform:rotate(-135deg);top:11px}
 .tb-idea:hover{border-color:var(--accent)}
 .tb-theme{display:inline-flex;align-items:center;justify-content:center;width:36px;height:36px;flex:none;border:1px solid var(--line2);background:var(--surface);color:var(--ink);border-radius:999px;padding:0;cursor:pointer}
 .tb-theme .ic{width:18px;height:18px}
+.box-add{cursor:pointer}
+.add-z{aspect-ratio:300/172;width:100%;border:2px dashed var(--line2);border-radius:12px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;color:var(--mute);text-align:center;padding:12px;transition:border-color .15s,color .15s,background .15s}
+.add-z b{color:var(--ink);font-size:1rem}
+.add-z .ic{width:30px;height:30px;color:var(--accent)}
+.box-add:hover .add-z{border-color:var(--accent);background:var(--accent-bg)}
+@media (max-width:699px){.add-z{aspect-ratio:auto;min-height:120px}}
+.swatches{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:6px}
+.sw{display:inline-flex;align-items:center;gap:8px;border:1px solid var(--line2);background:var(--surface);color:var(--ink);border-radius:999px;padding:6px 12px 6px 6px;font-weight:600;font-size:.88rem;min-height:40px;cursor:pointer}
+.sw i{width:26px;height:26px;border-radius:50%;background:var(--sw);box-shadow:inset 0 0 0 1px rgba(0,0,0,.2)}
+.sw:hover{border-color:var(--accent)}
+.sw.on{border-color:var(--accent);box-shadow:0 0 0 2px var(--accent) inset;background:var(--accent-bg)}
 .tb-theme:hover{border-color:var(--accent);color:var(--accent)}
 @media (max-width:420px){.top{gap:6px}.tb-theme{width:34px;height:34px}.tb-idea{min-height:34px;padding:6px 8px}.who{padding:3px 8px 3px 3px}}
 @media (max-width:420px){.tb-idea span{display:none}.tb-idea{padding:6px 9px}}
@@ -509,14 +520,26 @@ function home(){
   h+='<div class="todo">'+t.join('')+'</div>';
   h+='<div class="todo evo-t">'+item(0,'bulb','Il manque quelque chose ?','Dites ce que vous voulez gérer ou voir : 3 questions, 30 s',null,'data-act="idnew"')+'</div>';
   h+='<div class="row"><h2 class="grow">Les '+S.conts.length+' conteneurs</h2>'+key()+'</div>';
-  h+='<div class="yard">'+S.conts.map(boxCard).join('')+'</div>';
+  h+='<div class="yard">'+S.conts.map(boxCard).join('')+'<button class="box box-add" data-act="ctrnew"><span class="add-z">'+ic('plus')+'<b>Ajouter un conteneur</b><span class="small mute">Un nom, une couleur, puis ses pièces</span></span></button></div>';
   return h+demoBox()}
+
+/* Conteneurs : ajouter, renommer, changer la couleur ; supprimer seulement s'il est vide (aucune pièce perdue). */
+var CTR_COL=[['Bleu','#2c5c8f'],['Vert','#2d6a4d'],['Rouille','#983b25'],['Gris','#4f5a63'],['Ocre','#8a6418'],['Bordeaux','#6e2a3a']],ctrEd=null;
+function ctrForm(){var c=ctrEd.id?C(ctrEd.id):null,n=c?actifs().filter(function(p){return p.cont===c.id}).length:0;
+  layer('<h2>'+(c?'Modifier le conteneur':'Nouveau conteneur')+'</h2>'+
+  '<label class="f">Nom<input id="ct-nom" maxlength="24" autocomplete="off" placeholder="Ex. : Hydraulique, Pneus…" value="'+esc(ctrEd.nom)+'"></label>'+
+  '<p class="small mute">Couleur</p><div class="swatches">'+CTR_COL.map(function(x){return '<button class="sw'+(ctrEd.c===x[1]?' on':'')+'" data-act="ctrcol" data-v="'+x[1]+'" aria-label="'+x[0]+'" aria-pressed="'+(ctrEd.c===x[1])+'" style="--sw:'+x[1]+'"><i></i>'+x[0]+'</button>'}).join('')+'</div>'+
+  '<span class="err" id="ct-err"></span>'+
+  '<button class="btn primary big" data-act="ctrok">'+(c?'Enregistrer':'Ajouter le conteneur')+'</button>'+
+  (c?(n?'<p class="small mute">Pour supprimer ce conteneur, déplacez ou retirez d’abord ses '+n+' pièce'+(n>1?'s':'')+'.</p>':'<button class="btn danger" data-act="ctrdel">Supprimer ce conteneur</button>'):'')+
+  '<button class="btn" data-act="close">Annuler</button>');
+  var e=document.getElementById('ct-nom');if(e&&!c)e.focus()}
 
 var hq='';
 function homeHits(){if(!hq)return '';var l=actifs().filter(function(p){return norm(p.nom+' '+p.ref+' '+p.emp+' '+C(p.cont).nom).indexOf(norm(hq))>-1}).sort(function(a,b){return norm(a.nom).indexOf(norm(hq))-norm(b.nom).indexOf(norm(hq))}).slice(0,8);
   return l.length?l.map(partCard).join(''):'<div class="empty">Aucune pièce ne correspond. Vérifiez l’orthographe, ou ouvrez un conteneur plus bas.</div>'}
 function boxCard(c){var k=ctrInfo(c);
-  return '<button class="box" data-act="go" data-v="cont" data-x="'+c.id+'">'+ctrSvg(c)+'<span class="ctr-f"><span class="ctr-t"><span class="ctr-n">'+esc(c.nom)+'</span><span class="ctr-s l'+(k.nc?2:k.n[1]?1:0)+'">'+(k.nc?k.nc+' à commander':k.n[1]?k.n[1]+' à surveiller':'OK')+'</span></span>'+cells(k.l)+'<span class="small mute num">'+k.l.length+' références</span></span></button>'}
+  return '<button class="box" data-act="go" data-v="cont" data-x="'+c.id+'">'+ctrSvg(c)+'<span class="ctr-f"><span class="ctr-t"><span class="ctr-n">'+esc(c.nom)+'</span><span class="ctr-s l'+(k.nc?2:k.n[1]?1:0)+'">'+(k.nc?k.nc+' à commander':k.n[1]?k.n[1]+' à surveiller':'OK')+'</span></span>'+cells(k.l)+'<span class="small mute num">'+k.l.length+' référence'+(k.l.length>1?'s':'')+'</span></span></button>'}
 
 function sugHtml(p){var s=suggestion(p),w=weekly(p);return '<div class="suggest"><div class="grow"><b>'+esc(p.nom)+'</b><div class="small mute">Seuil conseillé <b class="num" style="color:var(--ink)">'+s+'</b> au lieu de '+seuil(p)+' · sort '+un(w)+' par semaine · délai '+delai(p)+' j'+(p.crit?' · critique':'')+'</div></div><button class="btn ok" data-act="acc" data-id="'+p.id+'">Accepter</button><button class="btn" data-act="ref" data-id="'+p.id+'">Garder '+seuil(p)+'</button></div>'}
 
@@ -528,7 +551,7 @@ function partCard(p){var l=lvl(p),s=stock(p),ec=enCommande(p),t=seuil(p),mx=Math
 
 function cont(){var c=C(view.x),l=actifs().filter(function(p){return p.cont===c.id&&(norm(p.nom+' '+p.ref+' '+p.emp).indexOf(norm(q))>-1)}).sort(function(a,b){return lvl(b)-lvl(a)});
   var k=ctrInfo(c),n=k.n;
-  return '<div class="row"><button class="btn back" data-act="go" data-v="home">'+ic('back')+'Tous les conteneurs</button></div><div class="head">'+ctrSvg(c,1)+'<div class="ctr-f"><div class="ctr-t"><h1>'+esc(c.nom)+'</h1><span class="small mute num">Conteneur '+k.num+' · '+k.l.length+' réf.</span></div><div class="tally">'+[3,2,1,0].map(function(i){return '<span class="l'+i+'"><i class="dot"></i><b>'+n[i]+'</b> '+LV[i].toLowerCase()+'</span>'}).join('')+'</div></div></div>'+
+  return '<div class="row"><button class="btn back" data-act="go" data-v="home">'+ic('back')+'Tous les conteneurs</button><span class="grow"></span><button class="btn" data-act="ctredit" data-id="'+c.id+'">Modifier</button></div><div class="head">'+ctrSvg(c,1)+'<div class="ctr-f"><div class="ctr-t"><h1>'+esc(c.nom)+'</h1><span class="small mute num">Conteneur '+k.num+' · '+k.l.length+' réf.</span></div><div class="tally">'+[3,2,1,0].map(function(i){return '<span class="l'+i+'"><i class="dot"></i><b>'+n[i]+'</b> '+LV[i].toLowerCase()+'</span>'}).join('')+'</div></div></div>'+
   '<div class="row"><input id="q" class="search grow" type="search" placeholder="Rechercher : nom, référence, étagère…" value="'+esc(q)+'"><button class="btn primary" data-act="addform">＋ Ajouter une pièce</button></div>'+
   '<section class="card" id="newp" hidden><h2>Nouvelle pièce</h2><div class="grid2">'+
   '<label class="f">Nom<input id="np-nom" autocomplete="off"></label>'+
@@ -539,7 +562,7 @@ function cont(){var c=C(view.x),l=actifs().filter(function(p){return p.cont===c.
   '<label class="f">Fournisseur<select id="np-f">'+S.fours.map(function(x){return '<option value="'+x.id+'">'+esc(x.nom)+'</option>'}).join('')+'</select></label>'+
   '<label class="f" style="flex-direction:row;align-items:center;gap:10px;color:var(--ink)"><input type="checkbox" id="np-c"> Immobilise une machine si elle manque</label></div>'+
   '<div class="row"><button class="btn primary" data-act="addpiece">Ajouter la pièce</button><button class="btn" data-act="addform">Annuler</button><span class="err" id="np-err"></span></div></section>'+
-  '<div id="list" style="display:flex;flex-direction:column;gap:10px">'+(l.length?l.map(partCard).join(''):'<div class="empty">Aucune pièce ne correspond.</div>')+'</div>'}
+  '<div id="list" style="display:flex;flex-direction:column;gap:10px">'+(l.length?l.map(partCard).join(''):'<div class="empty">'+(q?'Aucune pièce ne correspond.':'Ce conteneur est vide. Touchez « Ajouter une pièce » pour le remplir.')+'</div>')+'</div>'}
 
 function search(){var l=q?actifs().filter(function(p){return norm(p.nom+' '+p.ref+' '+p.emp).indexOf(norm(q))>-1}):[];
   return l.length?l.map(partCard).join(''):(q?'<div class="empty">Aucune pièce ne correspond.</div>':'')}
@@ -770,6 +793,18 @@ document.addEventListener('click',function(e){var t=e.target.closest('[data-act]
   if(a==='in1'){var pin=P(id),iid=addMvt({piece:id,type:'recu',q:1});bumpId=id;render();bumpId=null;toast('+1 '+pin.nom,iid);return}
   if(a==='cnow'){askCount(P(id));return}
   if(a==='cnowok'){var cv=document.getElementById('cn').value;if(cv===''){document.getElementById('cn').focus();return}var pc=P(id),before=stock(pc),nv=Math.max(0,parseInt(cv,10)||0);S.comptes.push({id:uid(),piece:id,v:nv,t:Date.now(),qui:S.me});save();layer('');render();var dd=nv-before;toast('Comptage enregistré : '+nv+' '+pc.nom+(dd?' (écart '+(dd>0?'+':'')+dd+')':''));return}
+  if(a==='ctrnew'){var used=S.conts.map(function(c){return c.c}),libre=CTR_COL.filter(function(x){return used.indexOf(x[1])<0})[0];ctrEd={id:null,nom:'',c:(libre||CTR_COL[S.conts.length%CTR_COL.length])[1]};ctrForm();return}
+  if(a==='ctredit'){var ce=C(id);ctrEd={id:ce.id,nom:ce.nom,c:ce.c};ctrForm();return}
+  if(a==='ctrcol'){ctrEd.nom=document.getElementById('ct-nom').value;ctrEd.c=v;ctrForm();return}
+  if(a==='ctrok'){var cn=document.getElementById('ct-nom').value.trim().replace(/\s+/g,' '),ce2=document.getElementById('ct-err');
+    if(!cn){ce2.textContent='Donnez un nom au conteneur.';document.getElementById('ct-nom').focus();return}
+    if(S.conts.some(function(c){return c.id!==ctrEd.id&&norm(c.nom)===norm(cn)})){ce2.textContent='Un conteneur porte déjà ce nom.';return}
+    if(ctrEd.id){var cm=C(ctrEd.id);cm.nom=cn;cm.c=ctrEd.c;save();layer('');render();toast('Conteneur modifié : '+cn+'.');return}
+    var nid='c'+uid(),num=100038+8*(S.conts.length-3);
+    S.conts.push({id:nid,nom:cn,c:ctrEd.c,code:'MAGU '+num+' '+(num%7)});save();layer('');q='';go('cont',nid);toast('Conteneur ajouté : '+cn+'. Ajoutez-y ses pièces.');return}
+  if(a==='ctrdel'){var cd=C(ctrEd.id);if(actifs().some(function(p){return p.cont===cd.id}))return;
+    if(!t.dataset.sure){t.dataset.sure='1';t.textContent='Confirmer : supprimer « '+cd.nom+' »';return}
+    S.conts=S.conts.filter(function(c){return c.id!==cd.id});save();layer('');go('home');toast('Conteneur supprimé : '+cd.nom+'.');return}
   if(a==='addform'){var fp=document.getElementById('newp');fp.hidden=!fp.hidden;if(!fp.hidden)document.getElementById('np-nom').focus();return}
   if(a==='addpiece'){var nm=document.getElementById('np-nom').value.trim(),rf=document.getElementById('np-ref').value.trim(),er=document.getElementById('np-err');
     if(!nm){er.textContent='Indiquez le nom de la pièce.';document.getElementById('np-nom').focus();return}
@@ -823,6 +858,6 @@ document.addEventListener('change',function(e){var d=e.target.dataset;if(!d||!d.
   if(d.f==='delai'||d.f==='seuil'||d.f==='cond')val=Math.max(d.f==='cond'?1:0,parseInt(val,10)||0);
   if(d.f==='seuil'){p.accepte=null;p.refus=null}
   p[d.f]=val;save();render();toast('Fiche enregistrée.')});
-document.addEventListener('keydown',function(e){if(e.key==='Enter'){if(e.target.id==='cnt'){e.preventDefault();document.querySelector('[data-act="cnext"]').click()}else if(e.target.id==='me'){document.querySelector('[data-act="setme"]').click()}else if(e.target.id==='qn'){document.querySelector('[data-act="qok"]').click()}else if(e.target.id==='cn'){document.querySelector('[data-act="cnowok"]').click()}}if(e.key==='Escape')layer('')});
+document.addEventListener('keydown',function(e){if(e.key==='Enter'){if(e.target.id==='ct-nom'){e.preventDefault();document.querySelector('[data-act="ctrok"]').click()}else if(e.target.id==='cnt'){e.preventDefault();document.querySelector('[data-act="cnext"]').click()}else if(e.target.id==='me'){document.querySelector('[data-act="setme"]').click()}else if(e.target.id==='qn'){document.querySelector('[data-act="qok"]').click()}else if(e.target.id==='cn'){document.querySelector('[data-act="cnowok"]').click()}}if(e.key==='Escape')layer('')});
 render();
 </script>
