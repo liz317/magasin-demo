@@ -141,6 +141,15 @@ details.set[open] summary::after{transform:rotate(-135deg);top:11px}
 .mv.off{opacity:.5}.mv.off b{text-decoration:line-through}
 .lnk{background:none;border:0;color:var(--accent);font-weight:600;padding:8px 4px;min-height:40px}
 .lnk:hover{text-decoration:underline}
+/* espace lancement */
+.lbar{width:100%;height:8px;border-radius:4px;background:var(--line2);overflow:hidden}
+.lbar i{display:block;height:100%;background:var(--accent);border-radius:4px;transition:width .3s}
+.lbar.sm{height:6px}
+.lf{display:flex;flex-direction:column;gap:8px}
+.lf-r{display:grid;grid-template-columns:minmax(0,1fr) 84px auto;align-items:center;gap:10px;font-weight:600}
+.lf-r input{text-align:center;min-height:44px}
+.card.q .acts{margin-top:4px}
+.btn[disabled]{opacity:.45;pointer-events:none}
 /* espace idées */
 .evo{display:flex;flex-direction:column;align-items:flex-start;gap:10px;padding:20px;border-radius:8px;background:var(--accent-bg)}
 .evo.ok{background:var(--ok-bg)}
@@ -368,6 +377,7 @@ function seed(){
   });
   // une commande en retard, pour montrer le suivi
   S.cmds.push({id:'c1',four:'f3',t:now-16*DAY,att:now-2*DAY,etat:'ouverte',lignes:[{piece:'p9',q:3,recu:0}]});
+  S.lanc={a:{}};
   /* une idée d'exemple, pour montrer la liste */
   S.idees=[{id:'i1',t:now-3*DAY,qui:'Julie',quoi:'Les outils prêtés',texte:'Savoir qui a la clé dynamométrique',comment:'En demandant à un collègue',freq:'Chaque semaine',gain:['Du temps gagné'],detail:''}];
   S.mvts.sort(function(a,b){return a.t-b.t});
@@ -377,6 +387,7 @@ function seed(){
 var S;try{S=JSON.parse(localStorage.getItem(KEY))}catch(e){S=null}
 if(!S||S.v!==3)S=seed();
 if(!S.idees)S.idees=[];
+if(!S.lanc)S.lanc={a:{}};
 function save(){try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}}
 
 /* ---------- Calculs (plan, parties 3.B et 9) ---------- */
@@ -484,6 +495,8 @@ function home(){
   h+='<section class="take"><label class="take-l" for="hs">Prendre ou ranger une pièce</label><input id="hs" class="search" type="search" autocomplete="off" placeholder="Tapez le nom, la référence ou l’étagère" value="'+esc(hq)+'">'+
     (mine.length?'<div class="picks" id="hpk"'+(hq?' hidden':'')+'><span class="small mute">Vos dernières :</span>'+mine.map(function(id){return '<button class="pick" data-act="hpick" data-v="'+esc(P(id).nom)+'">'+esc(P(id).nom)+'</button>'}).join('')+'</div>':'')+
     '<div id="hsr" class="hits">'+homeHits()+'</div></section>';
+  /* À régler une fois, avant le vrai outil : en tête tant que les 10 questions ne sont pas faites. */
+  var ln=lNb();t[ln<10?'unshift':'push'](item(ln<10?1:0,ln<10?'pin':'ok','Préparer le lancement',ln<10?ln+' sur 10 questions réglées · environ 10 min':'Les 10 questions sont réglées · copier les réponses',null,'data-act="tab" data-v="lanc"'));
   h+='<div class="todo">'+t.join('')+'</div>';
   h+='<div class="todo evo-t">'+item(0,'bulb','Il manque quelque chose ?','Dites ce que vous voulez gérer ou voir : 3 questions, 30 s',null,'data-act="idnew"')+'</div>';
   h+='<div class="row"><h2 class="grow">Les '+S.conts.length+' conteneurs</h2>'+key()+'</div>';
@@ -650,17 +663,69 @@ function ideeFin(){var o=iq.done;
   '<section class="card"><div class="row"><h2 class="grow">Mise en forme automatique</h2><span class="tag">Reçue</span></div>'+ideeFiche(o)+'<p class="small mute">Elle rejoint la liste des évolutions du logiciel. Démo : l’idée reste sur cet appareil.</p></section>'+
   '<div class="acts"><button class="btn" data-act="idnew">Une autre idée</button><button class="btn primary" data-act="tab" data-v="home">Retour à l’accueil</button></div>'}
 
+/* ---------- Espace « Préparer le lancement » : 10 questions qui règlent le vrai outil (questions-cahier-des-charges.md) ---------- */
+var LQ=[
+  {t:'Le comptage de la semaine',q:'Qui compterait une quinzaine de pièces chaque semaine, et quel jour ?',why:'Tout le calcul repose sur ce comptage de 15 minutes : sans lui, les seuils restent fixés à la main.',
+   f:[{k:'jour',l:'Quel jour ?',c:['Lundi','Mardi','Mercredi','Jeudi','Vendredi','Samedi']},{k:'qui',l:'Qui ?',c:['Moi','Toujours le même employé','À tour de rôle','Personne ne peut s’y engager']},{k:'x',l:'À quelle heure ? (facultatif)',x:'Ex. : 7 h 30, avant le départ des camions'}]},
+  {t:'Pièces et unités',q:'Combien de pièces différentes avez-vous, et lesquelles ne se comptent pas à l’unité ?',why:'Une erreur d’unité (litres, mètres, boîtes) fausse tous les calculs de la pièce.',
+   f:[{k:'nb',l:'Nombre de pièces différentes',c:['Moins de 50','50 à 150','150 à 300','Plus de 300']},{k:'u',l:'Comptées autrement qu’à l’unité',c:['Au litre','Au mètre','Au kilo','En boîte ou en vrac','Tout à l’unité'],m:5},{k:'x',l:'Lesquelles ? (facultatif)',x:'Ex. : huile au litre, flexible au mètre'}]},
+  {t:'Délais des fournisseurs',q:'Combien de jours entre la commande et l’arrivée, d’habitude, chez chaque fournisseur ?',why:'Le délai décide du moment où l’outil dit « à commander ». Laissez vide si vous ne savez pas.',
+   f:[{four:1},{k:'x',l:'Minimum de commande, frais de port, jour de livraison fixe ?',x:'Ex. : livre seulement le jeudi'}]},
+  {t:'Pièces critiques',q:'Quelles pièces, si elles manquent, arrêtent un camion ou une pompe ?',why:'Elles auront une marge de sécurité doublée et seront comptées chaque semaine. Jusqu’à 10.',
+   f:[{pieces:1,k:'p',l:'Pièces qui arrêtent une machine'},{k:'x',l:'D’autres ? (facultatif)',x:'Nom des pièces'}]},
+  {t:'Entretiens prévus',q:'Les entretiens se font tous les combien, et quelles pièces sortent à chaque fois ?',why:'Ces sorties sont prévisibles : l’outil pourra réserver les pièces à l’avance au lieu de les deviner.',
+   f:[{k:'r',l:'Le rythme se compte en',c:['Kilomètres','Heures moteur','Mois','Pas de rythme fixe'],m:3},{k:'x',l:'Pour un entretien type',x:'Ex. : camions tous les 30 000 km : filtre à huile, filtre à air, 5 L d’huile'}]},
+  {t:'Commander et recevoir',q:'Comment partent les commandes, et comment se passe une livraison ?',why:'Pour préparer le bon texte de commande et gérer les livraisons incomplètes.',
+   f:[{k:'c',l:'Les commandes partent par',c:['Mail','Téléphone','Site du fournisseur','Au comptoir'],m:4},{k:'b',l:'Le bon de livraison est vérifié',c:['Toujours','Parfois','Jamais']},{k:'p',l:'Livraisons incomplètes ou fausses',c:['Souvent','Parfois','Jamais']}]},
+  {t:'Pièces qui reviennent',q:'Arrive-t-il qu’une pièce revienne au stock ou reparte chez le fournisseur ?',why:'Sans ces cas, la consommation calculée serait fausse.',
+   f:[{k:'r',l:'Cochez ce qui arrive',c:['Pièce sortie mais pas montée','Mauvaise référence rendue','Pièce démontée gardée (occasion)','Renvoi au fournisseur','Jamais'],m:5}]},
+  {t:'Sur le terrain',q:'Dans quelles conditions l’outil sera-t-il utilisé ?',why:'Cela décide de la marche sans réseau, de la taille des boutons et des étiquettes à scanner.',
+   f:[{k:'r',l:'Réseau dans le magasin et les conteneurs',c:['Bon partout','Faible','Aucun dans les conteneurs']},{k:'t',l:'Téléphone utilisé',c:['Le sien','Un téléphone de l’atelier','Une tablette fixe']},{k:'m',l:'Mains sales ou gantées',c:['Souvent','Rarement']}]},
+  {t:'Ce qui existe déjà',q:'En plus du cahier, avez-vous un historique des achats des derniers mois ?',why:'Avec lui, les seuils seraient calculés dès le premier jour au lieu d’attendre 4 à 6 semaines.',
+   f:[{k:'h',l:'Cochez ce que vous avez',c:['Factures papier','Factures PDF','Fichier Excel','Compte en ligne chez un fournisseur','Rien'],m:5}]},
+  {t:'Le signe que ça marche',q:'Dans 2 mois, à quoi verrez-vous que l’outil vous rend service ?',why:'C’est ce qui décidera, après l’essai, de garder ou de corriger l’outil.',
+   f:[{k:'j',l:'Aujourd’hui, quand une pièce manque, la machine est arrêtée',c:['Quelques heures','1 jour','2 à 3 jours','Une semaine ou plus']},{k:'x',l:'Le signe que ça marche',x:'Ex. : plus jamais de camion arrêté pour un filtre'}]}];
+var lq=null;
+function lA(i){if(!S.lanc)S.lanc={a:{}};return S.lanc.a[i]||(S.lanc.a[i]={})}
+function lDone(i){var a=(S.lanc&&S.lanc.a[i])||{};return Object.keys(a).some(function(k){var v=a[k];return Array.isArray(v)?v.length>0:String(v==null?'':v).trim()!==''})}
+function lNb(){var n=0;LQ.forEach(function(q,i){if(lDone(i))n++});return n}
+function lChips(f,a){return '<div class="chips" role="group" aria-label="'+esc(f.l)+'">'+f.c.map(function(v){var on=f.m?(a[f.k]||[]).indexOf(v)>-1:a[f.k]===v;return '<button class="pick'+(on?' on':'')+'" aria-pressed="'+on+'" data-act="lchip" data-k="'+f.k+'" data-v="'+esc(v)+'"'+(f.m?' data-m="'+f.m+'"':'')+'>'+(on?ic('ok'):'')+esc(v)+'</button>'}).join('')+'</div>'}
+function lField(f,a){
+  if(f.four)return '<div class="lf">'+S.fours.map(function(o){var v=a['d_'+o.id];return '<label class="lf-r"><span>'+esc(o.nom)+'</span><input class="num" type="number" inputmode="numeric" min="0" data-lk="d_'+o.id+'" value="'+esc(v==null?'':v)+'" aria-label="Délai '+esc(o.nom)+' en jours"><span class="small mute">jours</span></label>'}).join('')+'</div>';
+  if(f.pieces)f={k:f.k,l:f.l,c:actifs().map(function(p){return p.nom}),m:10};
+  if(f.c)return '<h3>'+f.l+(f.m>1?' <span class="small mute">· plusieurs choix</span>':'')+'</h3>'+lChips(f,a);
+  return '<label class="f">'+f.l+'<textarea class="idt" data-lk="'+f.k+'" placeholder="'+esc(f.x||'')+'">'+esc(a[f.k]||'')+'</textarea></label>'}
+function lText(){var n=lNb(),out=['Préparation du lancement : réponses ('+n+'/10)'];
+  LQ.forEach(function(q,i){
+    if(!lDone(i)){out.push('',(i+1)+'. '+q.t+' : pas encore réglé');return}
+    var a=lA(i);out.push('',(i+1)+'. '+q.t);
+    q.f.forEach(function(f){
+      if(f.four){S.fours.forEach(function(o){var v=a['d_'+o.id];if(v!=null&&String(v).trim()!=='')out.push('- '+o.nom+' : '+v+' jours')});return}
+      var v=a[f.k];if(Array.isArray(v)){if(v.length)out.push('- '+f.l.replace(/ ?\?$/,'')+' : '+v.join(', '))}else if(v!=null&&String(v).trim()!=='')out.push('- '+f.l.replace(/ \(facultatif\)/,'').replace(/ ?\?$/,'')+' : '+String(v).trim())})});
+  return out.join('\n')}
+function lanc(){if(lq!=null)return lStep();var n=lNb();
+  return '<section class="evo"><span class="evo-i">'+ic('pin')+'</span><h1>Préparer le lancement</h1><p>10 questions sur votre atelier. Vos réponses règlent les calculs du vrai outil : jour du comptage, unités, délais, pièces critiques. Répondez dans l’ordre que vous voulez, tout est gardé.</p>'+
+    '<div class="lbar" role="progressbar" aria-valuemin="0" aria-valuemax="10" aria-valuenow="'+n+'"><i style="width:'+n*10+'%"></i></div><span class="small mute">'+n+' sur 10 réglées · environ 10 minutes en tout</span></section>'+
+    '<div class="todo">'+LQ.map(function(q,i){var d=lDone(i);return '<button class="todo-i l'+(d?0:1)+'" data-act="lgo" data-v="'+i+'">'+ic(d?'ok':'clock')+'<span class="grow"><b>'+(i+1)+'. '+q.t+'</b><span>'+(d?'Réglé · toucher pour modifier':'À régler')+'</span></span><span class="go">'+ic('chev')+'</span></button>'}).join('')+'</div>'+
+    '<section class="card"><h2>'+(n===10?'Tout est réglé':'Transmettre les réponses')+'</h2><p class="mute">'+(n===10?'Le vrai outil peut être préparé avec vos réponses.':'Vous pouvez envoyer ce qui est déjà réglé et compléter plus tard.')+' Copiez-les, puis collez-les dans un message ou un mail.</p>'+
+    '<button class="btn primary" data-act="lcopy"'+(n?'':' disabled')+'>Copier mes réponses ('+n+'/10)</button><textarea id="lcp" hidden readonly></textarea></section>'}
+function lStep(){var Q=LQ[lq],a=lA(lq);
+  return '<div class="row"><button class="btn back" data-act="lback">'+ic('back')+'Toutes les questions</button></div>'+
+  '<div class="lbar sm" aria-hidden="true"><i style="width:'+(lq+1)*10+'%"></i></div><span class="small mute">Question '+(lq+1)+' sur 10 · '+esc(Q.t)+'</span>'+
+  '<section class="card q"><h1>'+Q.q+'</h1><p class="mute">'+Q.why+'</p>'+Q.f.map(function(f){return lField(f,a)}).join('')+
+  '<div class="acts">'+(lq?'<button class="btn" data-act="lprev">Précédente</button>':'<span></span>')+'<button class="btn primary" data-act="lnext">'+(lq<9?'Suivante':'Terminer')+'</button></div></section>'}
+
 var TABS=[['home','Accueil','home'],['compter','Compter','count'],['commander','Commander','cart'],['machines','Machines','wrench'],['journal','Journal','list']];
 function tabs(){var n=view.n,act={home:'home',cont:'home',piece:'home',commandes:'home',machine:'machines'}[n]||n,nb=actifs().filter(aCommander).length;
   return TABS.map(function(t){return '<button class="'+(act===t[0]?'on':'')+'" data-act="tab" data-v="'+t[0]+'"'+(act===t[0]?' aria-current="page"':'')+'>'+ic(t[2])+'<b>'+t[1]+'</b>'+(t[0]==='commander'&&nb?'<span class="pill">'+nb+'</span>':'')+'</button>'}).join('')}
-function topBar(){var sec={home:'Tableau de bord',cont:'Conteneur',piece:'Fiche pièce',compter:'Comptage',commander:'À commander',commandes:'Commandes',machines:'Machines',machine:'Machine',journal:'Journal',idees:'Idées'}[view.n]||'';
+function topBar(){var sec={home:'Tableau de bord',cont:'Conteneur',piece:'Fiche pièce',compter:'Comptage',commander:'À commander',commandes:'Commandes',machines:'Machines',machine:'Machine',journal:'Journal',idees:'Idées',lanc:'Lancement'}[view.n]||'';
   return '<span class="logo">'+ic('stock')+'</span><div class="brand"><b>Magasin de pièces</b><span>'+sec+'</span></div>'+(view.n==='idees'?'':'<button class="tb-idea" data-act="tab" data-v="idees" aria-label="Proposer une idée">'+ic('bulb')+'<span>Une idée ?</span></button>')+'<span class="who"><i>'+esc(S.me.charAt(0).toUpperCase())+'</i>'+esc(S.me)+'</span>'}
 
 function nameScreen(){return '<h1>Magasin de pièces</h1><section class="card"><h2>Qui êtes-vous ?</h2><p class="mute">Votre prénom s’affiche dans le journal à chaque pièce prise. On ne le demande qu’une fois sur cet appareil.</p><input id="me" placeholder="Votre prénom" autocomplete="given-name"><button class="btn primary big" data-act="setme">Entrer</button><p class="small mute">Démo : les données sont fictives et restent sur cet appareil.</p></section>'}
 
 function render(){var a=document.getElementById('app'),t=document.getElementById('tabs'),tp=document.getElementById('top');
   if(!S.me){a.innerHTML=nameScreen();t.innerHTML='';t.hidden=true;tp.innerHTML='';return}
-  var f={home:home,cont:cont,piece:piece,compter:compter,commander:commander,commandes:commandes,machines:machines,machine:machine,journal:journal,idees:idees}[view.n]||home;
+  var f={home:home,cont:cont,piece:piece,compter:compter,commander:commander,commandes:commandes,machines:machines,machine:machine,journal:journal,idees:idees,lanc:lanc}[view.n]||home;
   a.innerHTML=f();t.hidden=false;t.innerHTML=tabs();tp.innerHTML=topBar();
   if(view.n==='compter'&&S.sess){var c=document.getElementById('cnt');if(c)c.focus()}}
 
@@ -687,7 +752,7 @@ function addMvt(o){o.id=uid();o.t=Date.now();o.qui=S.me;S.mvts.push(o);save();re
 document.addEventListener('click',function(e){var t=e.target.closest('[data-act]');if(!t)return;var a=t.dataset.act,id=t.dataset.id,v=t.dataset.v;
   if(a==='close'){if(e.target!==t&&t.classList.contains('sheet-bg'))return;layer('');return}
   if(a==='setme'){var n=document.getElementById('me').value.trim();if(!n){document.getElementById('me').focus();return}S.me=n;save();render();return}
-  if(a==='tab'){q='';hq='';iq=null;go(v);return}
+  if(a==='tab'){q='';hq='';iq=null;lq=null;go(v);return}
   if(a==='hpick'){hq=v;var hs=document.getElementById('hs');if(hs)hs.value=v;document.getElementById('hsr').innerHTML=homeHits();var pk=document.getElementById('hpk');if(pk)pk.hidden=true;return}
   if(a==='go'){if(v==='cont')q='';go(v,t.dataset.x);return}
   if(a==='reset'){if(t.dataset.sure){var me=S.me;S=seed();S.me=me;save();go('home');toast('Démo remise à zéro.')}else{t.dataset.sure='1';t.textContent='Confirmer : tout effacer';t.classList.add('danger')}return}
@@ -713,6 +778,12 @@ document.addEventListener('click',function(e){var t=e.target.closest('[data-act]
     if(s<2){iq.step++;go('idees');return}
     var o={id:uid(),t:Date.now(),qui:S.me,quoi:A.quoi||'',texte:(A.t0||'').trim(),comment:A.comment,freq:A.freq,gain:A.gain,detail:(A.t2||'').trim()};
     S.idees=S.idees||[];S.idees.push(o);save();iq.done=o;go('idees');return}
+  if(a==='lgo'){lq=+v;go('lanc');return}
+  if(a==='lback'){lq=null;go('lanc');return}
+  if(a==='lprev'){save();lq--;go('lanc');return}
+  if(a==='lnext'){save();if(lq<9){lq++;go('lanc')}else{lq=null;go('lanc');var rn=10-lNb();toast(rn?'Enregistré. Il reste '+rn+' question'+(rn>1?'s':'')+' à régler.':'Les 10 questions sont réglées.')}return}
+  if(a==='lchip'){var LA=lA(lq),lk=t.dataset.k,lm=+t.dataset.m||0;if(lm){var LX=['Jamais','Rien','Tout à l’unité','Pas de rythme fixe'],la=LA[lk]||[],lj=la.indexOf(v);if(lj>-1)la.splice(lj,1);else if(LX.indexOf(v)>-1)la=[v];else{la=la.filter(function(x){return LX.indexOf(x)<0});if(la.length<lm)la.push(v)}LA[lk]=la}else LA[lk]=LA[lk]===v?null:v;save();render();return}
+  if(a==='lcopy'){copy(lText(),'lcp');return}
   if(a==='outn'){askQty(P(id),'sortie');return}
   if(a==='recu1'){askQty(P(id),'recu');return}
   if(a==='qok'){var n2=Math.max(1,parseInt(document.getElementById('qn').value,10)||1),p2=P(id);if(v==='recu'){layer('');var i2=addMvt({piece:id,type:'recu',q:n2});render();toast('Reçu +'+n2+' '+p2.nom,i2)}else askMachine(p2,n2);return}
@@ -737,7 +808,7 @@ document.addEventListener('click',function(e){var t=e.target.closest('[data-act]
     actifs().forEach(function(p){rows.push([C(p.cont).nom,p.nom,p.ref,p.emp,stock(p),seuil(p),LV[lvl(p)],F(p.four).nom,delai(p),p.crit?'oui':'non'])});
     copy(rows.map(function(r){return r.join('\t')}).join('\n'),'xls');return}
 });
-document.addEventListener('input',function(e){if(/^idt[02]$/.test(e.target.id)&&iq){iq.a['t'+e.target.id.slice(3)]=e.target.value;return}if(e.target.id==='hs'){hq=e.target.value;var hr=document.getElementById('hsr');if(hr)hr.innerHTML=homeHits();var pk=document.getElementById('hpk');if(pk)pk.hidden=!!hq;return}if(e.target.id==='qcs'){qcs=e.target.value;var cl=document.getElementById('qcl');if(cl)cl.innerHTML=countList();return}if(e.target.id==='q'){q=e.target.value;var l=document.getElementById('list');if(l&&view.n==='cont'){var c=C(view.x),arr=actifs().filter(function(p){return p.cont===c.id&&norm(p.nom+' '+p.ref+' '+p.emp).indexOf(norm(q))>-1});l.innerHTML=arr.length?arr.map(partCard).join(''):'<div class="empty">Aucune pièce ne correspond.</div>'}}});
+document.addEventListener('input',function(e){if(e.target.dataset&&e.target.dataset.lk&&lq!=null){lA(lq)[e.target.dataset.lk]=e.target.value;save();return}if(/^idt[02]$/.test(e.target.id)&&iq){iq.a['t'+e.target.id.slice(3)]=e.target.value;return}if(e.target.id==='hs'){hq=e.target.value;var hr=document.getElementById('hsr');if(hr)hr.innerHTML=homeHits();var pk=document.getElementById('hpk');if(pk)pk.hidden=!!hq;return}if(e.target.id==='qcs'){qcs=e.target.value;var cl=document.getElementById('qcl');if(cl)cl.innerHTML=countList();return}if(e.target.id==='q'){q=e.target.value;var l=document.getElementById('list');if(l&&view.n==='cont'){var c=C(view.x),arr=actifs().filter(function(p){return p.cont===c.id&&norm(p.nom+' '+p.ref+' '+p.emp).indexOf(norm(q))>-1});l.innerHTML=arr.length?arr.map(partCard).join(''):'<div class="empty">Aucune pièce ne correspond.</div>'}}});
 document.addEventListener('change',function(e){var d=e.target.dataset;if(!d||!d.f)return;var p=P(d.id),val=e.target.type==='checkbox'?e.target.checked:e.target.value;
   if(d.f==='delai'||d.f==='seuil'||d.f==='cond')val=Math.max(d.f==='cond'?1:0,parseInt(val,10)||0);
   if(d.f==='seuil'){p.accepte=null;p.refus=null}
