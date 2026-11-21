@@ -41,7 +41,7 @@ body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset
 .logo{width:32px;height:32px;border-radius:8px;background:var(--accent);color:var(--on-accent);display:grid;place-items:center;flex:0 0 auto}
 .logo .ic{width:19px;height:19px}
 .brand{display:flex;flex-direction:column;line-height:1.15;min-width:0;flex:1}
-.brand b{font-weight:700;font-size:1rem}
+.brand b{font-weight:700;font-size:1rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .brand span{font-size:.8rem;color:var(--mute);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .who{display:flex;align-items:center;gap:6px;border:1px solid var(--line);border-radius:999px;padding:4px 10px 4px 4px;font-size:.85rem;font-weight:600;white-space:nowrap}
 .who i{width:24px;height:24px;border-radius:50%;background:var(--accent-bg);color:var(--accent);display:grid;place-items:center;font-style:normal;font-weight:700;font-size:.8rem}
@@ -182,6 +182,10 @@ details.set[open] summary::after{transform:rotate(-135deg);top:11px}
 .tb-idea{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line2);background:var(--surface);border-radius:999px;padding:6px 12px;font-weight:600;font-size:.85rem;min-height:36px}
 .tb-idea .ic{width:18px;height:18px;color:var(--accent)}
 .tb-idea:hover{border-color:var(--accent)}
+.tb-theme{display:inline-flex;align-items:center;justify-content:center;width:36px;height:36px;flex:none;border:1px solid var(--line2);background:var(--surface);color:var(--ink);border-radius:999px;padding:0;cursor:pointer}
+.tb-theme .ic{width:18px;height:18px}
+.tb-theme:hover{border-color:var(--accent);color:var(--accent)}
+@media (max-width:420px){.top{gap:6px}.tb-theme{width:34px;height:34px}.tb-idea{min-height:34px;padding:6px 8px}.who{padding:3px 8px 3px 3px}}
 @media (max-width:420px){.tb-idea span{display:none}.tb-idea{padding:6px 9px}}
 .todo.evo-t{border-color:var(--accent)}
 /* liste d'actions de l'accueil */
@@ -312,7 +316,8 @@ var ICO={home:'<path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0
   alert:'<path d="M12 3.5 2.5 20h19z"/><path d="M12 10v4.2M12 17.2v.1"/>',
   pin:'<path d="M12 21s-6.2-5.6-6.2-11.2a6.2 6.2 0 0 1 12.4 0C18.2 15.4 12 21 12 21z"/><circle cx="12" cy="9.8" r="2.1"/>',
   chev:'<path d="m9 6 6 6-6 6"/>',back:'<path d="m15 6-6 6 6 6"/>',plus:'<path d="M12 5v14M5 12h14"/>',
-  bolt:'<path d="M13 2.5 4.5 13.5H12l-1 8 8.5-11H12z"/>',bulb:'<path d="M9 18h6M10 21h4"/><path d="M12 3a6 6 0 0 0-3.6 10.8c.7.6 1.1 1.3 1.1 2.2h5c0-.9.4-1.6 1.1-2.2A6 6 0 0 0 12 3z"/>',stock:'<path d="M4 20V10l8-6 8 6v10"/><path d="M8 20v-6h8v6M8 17h8"/>'};
+  bolt:'<path d="M13 2.5 4.5 13.5H12l-1 8 8.5-11H12z"/>',bulb:'<path d="M9 18h6M10 21h4"/><path d="M12 3a6 6 0 0 0-3.6 10.8c.7.6 1.1 1.3 1.1 2.2h5c0-.9.4-1.6 1.1-2.2A6 6 0 0 0 12 3z"/>',stock:'<path d="M4 20V10l8-6 8 6v10"/><path d="M8 20v-6h8v6M8 17h8"/>',
+  moon:'<path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z"/>',sun:'<circle cx="12" cy="12" r="4"/><path d="M12 2.5v2M12 19.5v2M4.6 4.6 6 6M18 18l1.4 1.4M2.5 12h2M19.5 12h2M4.6 19.4 6 18M18 6l1.4-1.4"/>'};
 function ic(n){return '<svg class="ic" viewBox="0 0 24 24" aria-hidden="true">'+(ICO[n]||'')+'</svg>'}
 var LVI=['ok','clock','down','out'];
 function lvChip(l){return '<span class="chip l'+l+'">'+ic(LVI[l])+LV[l]+'</span>'}
@@ -389,6 +394,10 @@ if(!S||S.v!==3)S=seed();
 if(!S.idees)S.idees=[];
 if(!S.lanc)S.lanc={a:{}};
 function save(){try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}}
+/* Fond jour ou nuit : choix gardé sur l'appareil, à part des données (survit à la remise à zéro) ; sans choix, on suit l'appareil. */
+var THK='magasin-pieces-theme';
+function nuit(){var t=document.documentElement.dataset.theme;if(t)return t==='dark';try{return matchMedia('(prefers-color-scheme: dark)').matches}catch(e){return false}}
+(function(){var t=null;try{t=localStorage.getItem(THK)}catch(e){}if(t==='dark'||t==='light')document.documentElement.dataset.theme=t})();
 
 /* ---------- Calculs (plan, parties 3.B et 9) ---------- */
 function P(id){return S.pieces.filter(function(p){return p.id===id})[0]}
@@ -719,7 +728,7 @@ var TABS=[['home','Accueil','home'],['compter','Compter','count'],['commander','
 function tabs(){var n=view.n,act={home:'home',cont:'home',piece:'home',commandes:'home',machine:'machines'}[n]||n,nb=actifs().filter(aCommander).length;
   return TABS.map(function(t){return '<button class="'+(act===t[0]?'on':'')+'" data-act="tab" data-v="'+t[0]+'"'+(act===t[0]?' aria-current="page"':'')+'>'+ic(t[2])+'<b>'+t[1]+'</b>'+(t[0]==='commander'&&nb?'<span class="pill">'+nb+'</span>':'')+'</button>'}).join('')}
 function topBar(){var sec={home:'Tableau de bord',cont:'Conteneur',piece:'Fiche pièce',compter:'Comptage',commander:'À commander',commandes:'Commandes',machines:'Machines',machine:'Machine',journal:'Journal',idees:'Idées',lanc:'Lancement'}[view.n]||'';
-  return '<span class="logo">'+ic('stock')+'</span><div class="brand"><b>Magasin de pièces</b><span>'+sec+'</span></div>'+(view.n==='idees'?'':'<button class="tb-idea" data-act="tab" data-v="idees" aria-label="Proposer une idée">'+ic('bulb')+'<span>Une idée ?</span></button>')+'<span class="who"><i>'+esc(S.me.charAt(0).toUpperCase())+'</i>'+esc(S.me)+'</span>'}
+  return '<span class="logo">'+ic('stock')+'</span><div class="brand"><b>Magasin de pièces</b><span>'+sec+'</span></div>'+'<button class="tb-theme" data-act="theme" aria-label="'+(nuit()?'Passer en fond jour':'Passer en fond nuit')+'" title="'+(nuit()?'Fond jour':'Fond nuit')+'">'+ic(nuit()?'sun':'moon')+'</button>'+(view.n==='idees'?'':'<button class="tb-idea" data-act="tab" data-v="idees" aria-label="Proposer une idée">'+ic('bulb')+'<span>Une idée ?</span></button>')+'<span class="who"><i>'+esc(S.me.charAt(0).toUpperCase())+'</i>'+esc(S.me)+'</span>'}
 
 function nameScreen(){return '<h1>Magasin de pièces</h1><section class="card"><h2>Qui êtes-vous ?</h2><p class="mute">Votre prénom s’affiche dans le journal à chaque pièce prise. On ne le demande qu’une fois sur cet appareil.</p><input id="me" placeholder="Votre prénom" autocomplete="given-name"><button class="btn primary big" data-act="setme">Entrer</button><p class="small mute">Démo : les données sont fictives et restent sur cet appareil.</p></section>'}
 
@@ -755,6 +764,7 @@ document.addEventListener('click',function(e){var t=e.target.closest('[data-act]
   if(a==='tab'){q='';hq='';iq=null;lq=null;go(v);return}
   if(a==='hpick'){hq=v;var hs=document.getElementById('hs');if(hs)hs.value=v;document.getElementById('hsr').innerHTML=homeHits();var pk=document.getElementById('hpk');if(pk)pk.hidden=true;return}
   if(a==='go'){if(v==='cont')q='';go(v,t.dataset.x);return}
+  if(a==='theme'){var th=nuit()?'light':'dark';document.documentElement.dataset.theme=th;try{localStorage.setItem(THK,th)}catch(e){}document.getElementById('top').innerHTML=topBar();toast(th==='dark'?'Fond nuit':'Fond jour');return}
   if(a==='reset'){if(t.dataset.sure){var me=S.me;S=seed();S.me=me;save();go('home');toast('Démo remise à zéro.')}else{t.dataset.sure='1';t.textContent='Confirmer : tout effacer';t.classList.add('danger')}return}
   if(a==='out'){askMachine(P(id),1);return}
   if(a==='in1'){var pin=P(id),iid=addMvt({piece:id,type:'recu',q:1});bumpId=id;render();bumpId=null;toast('+1 '+pin.nom,iid);return}
